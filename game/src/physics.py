@@ -1,23 +1,25 @@
 import pymunk
-
-COLLISION_PLAYER = 1
-COLLISION_GOAL = 2
-COLLISION_WALL = 3
-COLLISION_HAZARD = 4
-COLLISION_SHIELD_ITEM = 5
-COLLISION_PARTICLE = 6
+from typing import List, Callable, Any, Optional
+from constants import (
+    COLLISION_PLAYER,
+    COLLISION_GOAL,
+    COLLISION_WALL,
+    COLLISION_HAZARD,
+    COLLISION_SHIELD_ITEM,
+    COLLISION_PARTICLE
+)
 
 class PhysicsWorld:
-    def __init__(self):
-        self.space = pymunk.Space()
+    def __init__(self) -> None:
+        self.space: pymunk.Space = pymunk.Space()
         self.space.gravity = (0, 980) 
-        self.entities = []
-        self.particles = []
-        self.debris = []
+        self.entities: List[Any] = []
+        self.particles: List[Any] = []
+        self.debris: List[Any] = []
         
-        self.on_win = None
-        self.on_death = None
-        self.on_shield_pickup = None
+        self.on_win: Optional[Callable[[], None]] = None
+        self.on_death: Optional[Callable[[], None]] = None
+        self.on_shield_pickup: Optional[Callable[[Any], None]] = None
         
         self.setup_handlers()
         
@@ -86,22 +88,28 @@ class PhysicsWorld:
     def step(self, dt):
         self.space.step(dt)
         
-    def draw(self, surface):
-        for entity in self.entities:
-            entity.draw(surface)
-        for particle in self.particles:
-            particle.draw(surface)
-        for d in self.debris:
-            d.draw(surface)
-            
+        for p in list(self.particles):
+            if p.body.position.y > 1000 or p.body.position.x < -200 or p.body.position.x > 800:
+                self.remove_particle(p)
+                
+        for d in list(self.debris):
+            if d.body.position.y > 1000 or d.body.position.x < -200 or d.body.position.x > 800:
+                self.debris.remove(d)
+                try:
+                    self.space.remove(d.body, d.shape)
+                except AssertionError:
+                    pass
+        
     def clear(self):
         for entity in self.entities:
             if hasattr(entity, 'body') and entity.body and hasattr(entity, 'shape') and entity.shape:
                 self.space.remove(entity.body, entity.shape)
         for p in self.particles:
-            self.space.remove(p.body, p.shape)
+            if hasattr(p, 'body') and p.body and hasattr(p, 'shape') and p.shape:
+                self.space.remove(p.body, p.shape)
         for d in self.debris:
-            self.space.remove(d.body, d.shape)
+            if hasattr(d, 'body') and d.body and hasattr(d, 'shape') and d.shape:
+                self.space.remove(d.body, d.shape)
             
         self.entities.clear()
         self.particles.clear()
